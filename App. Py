@@ -1,0 +1,112 @@
+import streamlit as st
+import requests
+from PIL import Image
+import io
+import urllib.parse
+
+# Page Setup
+st.set_page_config(page_title="HOLO AI Portal", page_icon="🤖", layout="centered")
+
+# Custom Styling
+st.markdown("""
+    <style>
+    .main-title { font-size: 2.5rem; font-weight: 800; text-align: center; color: #00f2fe; }
+    .sub-title { text-align: center; color: #a0aec0; margin-bottom: 20px; }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="main-title">🤖 HOLO AI PORTAL</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Image Generation & Public Feedback</div>', unsafe_allow_html=True)
+
+# Session State for Auth & Data
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'users' not in st.session_state:
+    st.session_state.users = {}
+if 'feedbacks' not in st.session_state:
+    st.session_state.feedbacks = []
+
+# Sidebar Navigation / Auth
+with st.sidebar:
+    st.header("🔐 Account System")
+    auth_mode = st.radio("Choose Action", ["Login", "Sign Up"])
+    
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    
+    if auth_mode == "Sign Up":
+        if st.button("Create Account", use_container_width=True):
+            if username and password:
+                if username in st.session_state.users:
+                    st.error("❌ Ye Username pehle se booked hai!")
+                else:
+                    st.session_state.users[username] = password
+                    st.success("✅ Account ban gaya! Ab Login chuno.")
+            else:
+                st.warning("⚠️ Username aur Password dono bharein.")
+                
+    elif auth_mode == "Login":
+        if st.button("Login", use_container_width=True):
+            if username in st.session_state.users and st.session_state.users[username] == password:
+                st.session_state.logged_in = True
+                st.session_state.current_user = username
+                st.success(f"Welcome, {username}!")
+            else:
+                st.error("❌ Galat Username ya Password!")
+
+# Main App Features
+if st.session_state.logged_in:
+    tab1, tab2 = st.tabs(["🎨 Image Generator", "⭐ Feedback & Ratings"])
+
+    # TAB 1: IMAGE GENERATOR
+    with tab1:
+        st.subheader("Generate AI Images")
+        prompt = st.text_area("Image Prompt Likho:", placeholder="E.g., Futuristic cyberpunk car running in night city, 8k resolution...")
+        
+        if st.button("✨ Generate Image", type="primary", use_container_width=True):
+            if prompt.strip():
+                with st.spinner("Image generate ho rahi hai... Please wait!"):
+                    try:
+                        encoded_prompt = urllib.parse.quote(prompt)
+                        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
+                        res = requests.get(url, timeout=30)
+                        
+                        if res.status_code == 200:
+                            img = Image.open(io.BytesIO(res.content))
+                            st.image(img, caption=f"Prompt: {prompt}", use_column_width=True)
+                            st.success("✅ Image successfully generate ho gayi!")
+                        else:
+                            st.error("❌ Server busy hai, dubara try karein.")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+            else:
+                st.warning("⚠️ Kripya pehle koi prompt likhein.")
+
+    # TAB 2: FEEDBACK & RATINGS
+    with tab2:
+        st.subheader("Public Feedback & Ratings")
+        rating = st.slider("Aapko HOLO AI kaisa laga? (Rating 1-5)", 1, 5, 5)
+        comment = st.text_area("Apna Feedback / Review likhein:")
+        
+        if st.button("Submit Review", use_container_width=True):
+            if comment.strip():
+                st.session_state.feedbacks.append({
+                    "user": st.session_state.current_user,
+                    "rating": rating,
+                    "comment": comment
+                })
+                st.success("✅ Thank you! Aapka feedback submit ho gaya.")
+            else:
+                st.warning("⚠️ Review likhna zaroori hai.")
+
+        st.divider()
+        st.write("### 💬 User Reviews")
+        if st.session_state.feedbacks:
+            for fb in reversed(st.session_state.feedbacks):
+                st.write(f"**{fb['user']}** ({'⭐' * fb['rating']})")
+                st.info(fb['comment'])
+        else:
+            st.write("Abhi tak koi review nahi aaya hai. Pehle reviewer aap banein!")
+
+else:
+    st.info("👈 Pehle Sidebar me jaakar **Sign Up / Login** karein taaki aap Image Generator use kar sakein!")
