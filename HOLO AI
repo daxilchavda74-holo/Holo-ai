@@ -1,0 +1,32 @@
+import gradio as gr
+from google import genai
+import os
+
+# Render Environment Variable ya direct key
+API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY")
+client = genai.Client(api_key=API_KEY)
+
+def holo_chatbot(message, history):
+    try:
+        system_instruction = (
+            "You are HOLO AI, a smart, friendly, and helpful AI assistant created by Dakshil Chavda. "
+            "Always respond in a natural, polite Hindi or Hinglish mix. "
+            "Whenever someone asks who created you, who made you, who is your developer, or who built you "
+            "(e.g., 'tumko kisne banaya', 'who created you', 'who is your creator'), "
+            "you MUST explicitly answer that you were created by Dakshil Chavda."
+        )
+
+        response = client.models.generate_content(
+            model='gemini-3.6-flash',
+            contents=f"{system_instruction}\nUser question: {message}"
+        )
+        return response.text if response and response.text else "HOLO AI: Response nahi mil paya."
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+with gr.Blocks(theme=gr.themes.Soft(), title="HOLO AI") as demo:
+    gr.Markdown("# 🤖 HOLO AI Assistant")
+    gr.Markdown("Created with ❤️ by **Dakshil Chavda**")
+    gr.ChatInterface(fn=holo_chatbot)
+
+demo.launch(server_name="0.0.0.0", server_port=7860)
